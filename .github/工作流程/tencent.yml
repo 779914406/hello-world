@@ -1,0 +1,91 @@
+# -*- coding: utf-8 -*-
+import json
+import requests
+import time
+ 
+ 
+def main_handler(event, context):
+    buildHearders()
+    # 签到
+    signResult = sign()
+    # 游戏信息
+    totalSignDay = getTotalSignDay()["data"]
+    totalSignDay = totalSignDay["total_sign_day"]
+    gameInfo = getGameInfo()["data"]["list"][0]
+    signInfo = getSignInfo()["data"]
+    award = signInfo["awards"][totalSignDay - 1]
+    # 方糖message内容，请不要格式化这段字符串
+    message = '''>{} 
+ 
+##### 游戏昵称：{} 
+##### 冒险等级：{} 
+##### 签到结果：{} 
+##### 签到奖励：{} x {}
+##### {}月累计签到：**{}** 天'''.format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), gameInfo["nickname"],
+                                 gameInfo["level"],
+                                 signResult['message'], award['name'], award['cnt'], signInfo["month"],
+                                 totalSignDay)
+    return notify(message)
+ 
+ 
+# 设置请求头
+def buildHearders():
+    headers["Cookie"] = cookie
+    headers["x-rpc-device_id"] = device_id
+    headers["Host"] = "api-takumi.mihoyo.com"
+    headers["Content-type"] = "application/json;charset=utf-8"
+    headers["Accept"] = "application/json, text/plain, */*"
+    # 此处为本次更新，米游社加了验证信息，导致18号签到失败
+    headers["x-rpc-client_type"] = "5"
+    headers["x-rpc-app_version"] = "2.1.0"
+    # 最好是替换一下你们自己的头信息里面DS参数
+    headers["DS"] = "1605713855,NFS8nk,208f6489aa605a8a4f966c2b8507cc8e"
+ 
+# 签到
+def sign():
+    signUrl = "https://api-takumi.mihoyo.com/event/bbs_sign_reward/sign"
+    param = {"act_id": act_id, "region": region, "uid": uid}
+    result = requests.request("POST", signUrl, headers=headers, data=json.dumps(param))
+    return json.loads(result.content)
+ 
+ 
+# 获取签到信息
+def getSignInfo():
+    url = "https://api-takumi.mihoyo.com/event/bbs_sign_reward/home?act_id={}"
+    userInfoResult = requests.get(url.format(act_id), headers=headers)
+    return json.loads(userInfoResult.content)
+ 
+ 
+# 获取签到天数
+def getTotalSignDay():
+    url = "https://api-takumi.mihoyo.com/event/bbs_sign_reward/info?region={}&act_id={}&uid={}"
+    userInfoResult = requests.get(url.format(region, act_id, uid), headers=headers)
+    return json.loads(userInfoResult.content)
+ 
+ 
+# 获取游戏信息
+def getGameInfo():
+    url = "https://api-takumi.mihoyo.com/binding/api/getUserGameRolesByCookie?game_biz=hk4e_cn"
+    userInfoResult = requests.get(url, headers=headers)
+    return json.loads(userInfoResult.content)
+ 
+ 
+# 微信推送
+def notify(message):
+    snedKey = "替换方糖通知key，度娘：server酱"
+    notifyUrl = "http://sc.ftqq.com/{}.send"
+    param = {'text': '米游社签到',
+             'desp': message}
+    notifyResult = requests.request("POST", notifyUrl.format(snedKey), headers={}, data=param, files=[])
+    return json.loads(notifyResult.text)
+ 
+ 
+act_id = "替换 act_id"
+region = "替换 region"
+uid = "替换 uid"
+cookie = "替换 cookie"
+# 设备号随意，但不能为空
+device_id = "7FAA346CDAE741A7B9B9F5F51E1C42A3"
+headers = {
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) miHoYoBBS/2.2.0"
+}
